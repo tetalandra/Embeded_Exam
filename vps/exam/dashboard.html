@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temperature Monitor — Landra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #060b14;
+      --bg-card: rgba(15, 23, 42, 0.72);
+      --border: rgba(148, 163, 184, 0.12);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent-glow: rgba(34, 211, 238, 0.35);
+      --warm: #f97316;
+      --hot: #ef4444;
+      --cool: #38bdf8;
+      --ok: #34d399;
+      --warn: #fbbf24;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Outfit", system-ui, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(34, 211, 238, 0.12), transparent),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(99, 102, 241, 0.1), transparent),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(16, 185, 129, 0.06), transparent);
+    }
+
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+      animation: float 12s ease-in-out infinite;
+      z-index: 0;
+    }
+    .orb-1 { width: 320px; height: 320px; background: #0e7490; top: -80px; left: -60px; }
+    .orb-2 { width: 280px; height: 280px; background: #4f46e5; bottom: -60px; right: -40px; animation-delay: -4s; }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(20px, 15px) scale(1.05); }
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #0891b2, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(34, 211, 238, 0.25);
+    }
+
+    .brand-icon svg { width: 26px; height: 26px; color: white; }
+
+    .brand h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--ok);
+      transition: all 0.4s ease;
+    }
+
+    .live-badge.waiting {
+      background: rgba(251, 191, 36, 0.1);
+      border-color: rgba(251, 191, 36, 0.25);
+      color: var(--warn);
+    }
+
+    .live-badge.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.25);
+      color: var(--hot);
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Main layout */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 720px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .glass {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Hero temperature card */
+    .hero {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+
+    @media (max-width: 560px) {
+      .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    }
+
+    .gauge-wrap {
+      position: relative;
+      width: 180px;
+      height: 180px;
+    }
+
+    .gauge-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-track {
+      fill: none;
+      stroke: rgba(148, 163, 184, 0.12);
+      stroke-width: 10;
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke: url(#gaugeGradient);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: 440;
+      stroke-dashoffset: 440;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+
+    .gauge-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .temp-value {
+      font-size: 2.75rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      transition: color 0.5s ease;
+    }
+
+    .temp-unit {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .hero-info .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .candidate-name {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #f8fafc 30%, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      max-width: 380px;
+    }
+
+    .temp-label {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(34, 211, 238, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      transition: all 0.4s ease;
+    }
+
+    /* Stat cards */
+    .stat-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-card .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .stat-card .stat-icon.cyan { background: rgba(34, 211, 238, 0.12); color: var(--accent); }
+    .stat-card .stat-icon.violet { background: rgba(139, 92, 246, 0.12); color: #a78bfa; }
+    .stat-card .stat-icon.emerald { background: rgba(52, 211, 153, 0.12); color: var(--ok); }
+
+    .stat-card .stat-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .stat-card .stat-value {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.9rem;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    /* Sparkline */
+    .chart-card {
+      grid-column: 1 / -1;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .chart-header h3 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .chart-range {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .sparkline-wrap {
+      height: 80px;
+      position: relative;
+    }
+
+    .sparkline-wrap svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .sparkline-area {
+      fill: url(#sparkGradient);
+      opacity: 0.4;
+    }
+
+    .sparkline-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 6px var(--accent-glow));
+    }
+
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="grid-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>ThermoSense</h1>
+          <p>Embedded Systems · Live Monitoring</p>
+        </div>
+      </div>
+      <div class="live-badge waiting" id="statusBadge">
+        <span class="pulse"></span>
+        <span id="statusText">Connecting…</span>
+      </div>
+    </header>
+
+    <div class="main-grid">
+      <section class="glass hero">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#22d3ee"/>
+                <stop offset="50%" stop-color="#6366f1"/>
+                <stop offset="100%" stop-color="#34d399"/>
+              </linearGradient>
+            </defs>
+            <circle class="gauge-track" cx="60" cy="60" r="52"/>
+            <circle class="gauge-fill" id="gaugeFill" cx="60" cy="60" r="52"/>
+          </svg>
+          <div class="gauge-center">
+            <span class="temp-value" id="temperature">—</span>
+            <span class="temp-unit">°Celsius</span>
+          </div>
+        </div>
+        <div class="hero-info">
+          <div class="label">Candidate</div>
+          <div class="candidate-name" id="candidate">—</div>
+          <p class="hero-desc">Live temperature from Arduino DHT11 via MQTT broker on VPS. Candidate: TETA Landra.</p>
+          <span class="temp-label" id="tempLabel">Awaiting reading</span>
+        </div>
+      </section>
+
+      <div class="glass stat-card">
+        <div class="stat-icon cyan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <span class="stat-title">Last Update</span>
+        <span class="stat-value" id="updated">—</span>
+      </div>
+
+      <div class="glass stat-card">
+        <div class="stat-icon violet">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/>
+          </svg>
+        </div>
+        <span class="stat-title">MQTT Topic</span>
+        <span class="stat-value" id="topic">—</span>
+      </div>
+
+      <div class="glass stat-card">
+        <div class="stat-icon emerald">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        </div>
+        <span class="stat-title">Data Source</span>
+        <span class="stat-value" id="source">VPS · MQTT Broker</span>
+      </div>
+
+      <div class="glass stat-card">
+        <div class="stat-icon cyan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <span class="stat-title">MQTT Status</span>
+        <span class="stat-value" id="mqttStatus">—</span>
+      </div>
+
+      <section class="glass chart-card">
+        <div class="chart-header">
+          <h3>Temperature trend</h3>
+          <span class="chart-range" id="chartRange">—</span>
+        </div>
+        <div class="sparkline-wrap">
+          <svg id="sparkline" viewBox="0 0 400 80" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path class="sparkline-area" id="sparkArea" d=""/>
+            <path class="sparkline-line" id="sparkLine" d=""/>
+          </svg>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const history = [];
+    const MAX_HISTORY = 30;
+    const GAUGE_MIN = 0;
+    const GAUGE_MAX = 50;
+    const CIRCUMFERENCE = 2 * Math.PI * 52;
+
+    function tempColor(t) {
+      if (t === null || isNaN(t)) return "#94a3b8";
+      if (t < 18) return "#38bdf8";
+      if (t < 28) return "#34d399";
+      if (t < 35) return "#fbbf24";
+      return "#ef4444";
+    }
+
+    function tempLabel(t) {
+      if (t === null || isNaN(t)) return "Awaiting reading";
+      if (t < 18) return "Cool environment";
+      if (t < 28) return "Comfortable range";
+      if (t < 35) return "Warm";
+      return "High temperature";
+    }
+
+    function updateGauge(t) {
+      const fill = document.getElementById("gaugeFill");
+      if (t === null || isNaN(t)) {
+        fill.style.strokeDashoffset = CIRCUMFERENCE;
+        return;
+      }
+      const pct = Math.min(1, Math.max(0, (t - GAUGE_MIN) / (GAUGE_MAX - GAUGE_MIN)));
+      fill.style.strokeDashoffset = CIRCUMFERENCE * (1 - pct);
+      fill.style.stroke = tempColor(t);
+    }
+
+    function updateSparkline() {
+      const line = document.getElementById("sparkLine");
+      const area = document.getElementById("sparkArea");
+      const range = document.getElementById("chartRange");
+
+      if (history.length < 2) {
+        line.setAttribute("d", "");
+        area.setAttribute("d", "");
+        range.textContent = "Collecting data…";
+        return;
+      }
+
+      const w = 400, h = 80, pad = 6;
+      const vals = history.map(h => h.t);
+      const min = Math.min(...vals) - 1;
+      const max = Math.max(...vals) + 1;
+      const span = max - min || 1;
+
+      const points = history.map((p, i) => {
+        const x = pad + (i / (history.length - 1)) * (w - 2 * pad);
+        const y = h - pad - ((p.t - min) / span) * (h - 2 * pad);
+        return [x, y];
+      });
+
+      const lineD = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+      const areaD = lineD + ` L${points[points.length-1][0].toFixed(1)},${h} L${points[0][0].toFixed(1)},${h} Z`;
+
+      line.setAttribute("d", lineD);
+      area.setAttribute("d", areaD);
+      range.textContent = `${min.toFixed(1)}° – ${max.toFixed(1)}° · ${history.length} samples`;
+    }
+
+    function setStatus(mode, text) {
+      const badge = document.getElementById("statusBadge");
+      const statusText = document.getElementById("statusText");
+      badge.className = "live-badge " + mode;
+      statusText.textContent = text;
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch("/api/latest");
+        const data = await res.json();
+
+        document.getElementById("candidate").textContent = data.candidate || "—";
+        document.getElementById("topic").textContent = data.mqtt_topic || "—";
+        document.getElementById("mqttStatus").textContent =
+          data.mqtt_connected ? "Subscribed on VPS" : "Waiting for MQTT data";
+        document.getElementById("source").textContent =
+          data.source || "VPS · MQTT Broker";
+
+        const t = data.temperature;
+        const tempEl = document.getElementById("temperature");
+        const labelEl = document.getElementById("tempLabel");
+
+        if (t !== null && t !== undefined && !isNaN(t)) {
+          const val = Number(t);
+          tempEl.textContent = val.toFixed(1);
+          tempEl.style.color = tempColor(val);
+          labelEl.textContent = tempLabel(val);
+          labelEl.style.background = `color-mix(in srgb, ${tempColor(val)} 15%, transparent)`;
+          labelEl.style.color = tempColor(val);
+          labelEl.style.borderColor = `color-mix(in srgb, ${tempColor(val)} 30%, transparent)`;
+
+          document.getElementById("updated").textContent = data.updated_at || "—";
+          updateGauge(val);
+
+          history.push({ t: val, at: Date.now() });
+          if (history.length > MAX_HISTORY) history.shift();
+          updateSparkline();
+
+          setStatus("live", data.mqtt_connected ? "Live · MQTT" : "Live · Serial");
+        } else {
+          tempEl.textContent = "—";
+          updateGauge(null);
+          setStatus("waiting", "Waiting for Arduino");
+        }
+      } catch (e) {
+        setStatus("error", "Connection error");
+      }
+    }
+
+    document.getElementById("gaugeFill").style.strokeDasharray = CIRCUMFERENCE;
+    setInterval(refresh, 1000);
+    refresh();
+  </script>
+</body>
+</html>

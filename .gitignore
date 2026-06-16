@@ -1,0 +1,7 @@
+# Secrets — do not commit
+config.env
+*.pyc
+__pycache__/
+venv/
+test_mqtt.py
+vps_probe*.py
