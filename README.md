@@ -1,4 +1,4 @@
-# Embedded Practical Exam Project
+# Embeded_Exam — Embedded Practical Exam Project
 
 Temperature monitoring system: **DHT11 Sensor → Arduino Uno → LCD → USB Serial → PC Program → MQTT Broker → VPS Dashboard**
 
