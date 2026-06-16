@@ -1,7 +1,14 @@
 # Secrets — do not commit
 config.env
+vps/exam/.env
 *.pyc
 __pycache__/
 venv/
 test_mqtt.py
 vps_probe*.py
+vps/deploy.py
+vps/restart_vps.py
+
+# Large local tools
+tools/arduino-cli/arduino-cli.exe
+tools/arduino-cli/arduino-cli.zip

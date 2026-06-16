@@ -14,7 +14,7 @@ import re
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -179,7 +179,7 @@ def publish_temperature(
         "candidate": candidate,
         "temperature": round(temperature, 2),
         "unit": "C",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     client.publish(topic, json.dumps(payload), qos=0, retain=False)
 

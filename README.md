@@ -141,9 +141,17 @@ python temperature_monitor.py
 ### 3. Expected Output (PC)
 
 ```
-[14:32:01] Your Full Candidate Name Here | Temperature: 24.50 C
-[14:32:02] Your Full Candidate Name Here | Temperature: 24.52 C
+[11:31:46] Landra | Temperature: 28.60 C
+[11:31:48] Landra | Temperature: 28.70 C
+[11:31:50] Landra | Temperature: 28.80 C
 ```
+
+PC client running with MQTT connected to the VPS broker:
+
+![PC temperature monitor — serial + MQTT live output](docs/images/pc-monitor-screenshot.png)
+
+- **Local dashboard:** http://localhost:8080  
+- **VPS dashboard:** http://157.173.101.159:9268
 
 ## LCD Behavior
 

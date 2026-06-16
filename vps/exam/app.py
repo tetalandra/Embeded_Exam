@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -11,14 +12,14 @@ from pathlib import Path
 
 import paho.mqtt.client as mqtt
 
-MQTT_BROKER = "157.173.101.159"
-MQTT_PORT = 1883
-MQTT_TOPIC = "embedded/exam/temperature"
-MQTT_USERNAME = "user268"
-MQTT_PASSWORD = "Q@7Z!RK9"
-DASHBOARD_PORT = 9268
-API_PORT = 8268
-CANDIDATE_NAME = "Landra"
+MQTT_BROKER = os.getenv("MQTT_BROKER", "157.173.101.159")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "embedded/exam/temperature")
+MQTT_USERNAME = os.getenv("MQTT_USERNAME", "user268")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "9268"))
+API_PORT = int(os.getenv("API_PORT", "8268"))
+CANDIDATE_NAME = os.getenv("CANDIDATE_NAME", "Landra")
 
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_HTML = (BASE_DIR / "dashboard.html").read_text(encoding="utf-8")
